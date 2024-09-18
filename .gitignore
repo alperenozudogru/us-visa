@@ -1,0 +1,5 @@
+.env
+__pycache__/config.cpython-312.pyc
+chromedriver-win64/chromedriver.exe
+chromedriver-win64/LICENSE.chromedriver
+chromedriver-win64/THIRD_PARTY_NOTICES.chromedriver
