@@ -12,7 +12,7 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait, Select
 from selenium.webdriver.support import expected_conditions as EC
 
-from config import USER_EMAIL, USER_PASSWORD, TELEGRAM_TOKEN, CHAT_IDS, THRESHOLD_DATE, DRIVER_PATH, APPOINTMENT_ID
+from config import USER_EMAIL, USER_PASSWORD, TELEGRAM_TOKEN, CHAT_IDS, DRIVER_PATH, APPOINTMENT_ID
 
 # Set the locale to Turkish
 #locale.setlocale(locale.LC_TIME, 'tr_TR.UTF-8')
