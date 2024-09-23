@@ -14,9 +14,6 @@ from selenium.webdriver.support import expected_conditions as EC
 
 from config import USER_EMAIL, USER_PASSWORD, TELEGRAM_TOKEN, CHAT_IDS, DRIVER_PATH, APPOINTMENT_ID
 
-# Set the locale to Turkish
-#locale.setlocale(locale.LC_TIME, 'tr_TR.UTF-8')
-
 # Setup WebDriver
 def setup_driver():
     chrome_options = Options()
@@ -27,7 +24,6 @@ def setup_driver():
 # Log in to the system
 def login(driver):
     driver.get("https://ais.usvisa-info.com/en-tr/niv/users/sign_in")
-    #time.sleep(1)
     # check user_email and user_password fields are created
     WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.ID, "user_email")))
     # Enter email and password
@@ -61,7 +57,7 @@ def get_appointment_date(driver):
         appointment_date_str = date_match.group(1)
         # Parse the extracted date string to a datetime object
         appointment_date = datetime.strptime(appointment_date_str, "%d %B, %Y")
-        print(f"Extracted appointment date: {appointment_date.strftime('%d-%m-%Y')}")
+        print(f"Current Appointment Date: {appointment_date.strftime('%d-%m-%Y')}")
     else:
         print("No date found in the consular appointment text.")
     return appointment_date
@@ -116,7 +112,6 @@ def find_first_available_day(driver, appointment_date: datetime):
                         # Parse the selected date and compare with threshold
                         full_date = datetime.strptime(selected_date, "%Y-%m-%d")
                         print(f"Selected date: {full_date.strftime('%d-%m-%Y')} Time: {selected_time}")
-                        print(f"appointment_date: {appointment_date.strftime('%d-%m-%Y')}")
                         if full_date < appointment_date:
                             message = f"Available date found and taken: {full_date.strftime('%d-%m-%Y')} Time: {selected_time}"
                             print(message)
@@ -124,17 +119,15 @@ def find_first_available_day(driver, appointment_date: datetime):
                             submit.click()
                             time.sleep(1)
                             
-                            # Click the "Onayla" button in the confirmation modal
-                            onayla_button = driver.find_element(By.XPATH, "//a[@class='button alert' and text()='Confirm']")
-                            print("Onayla button found")
-                            onayla_button.click()
+                            # Click the "Confirm" button in the confirmation modal
+                            confirm_button = driver.find_element(By.XPATH, "//a[@class='button alert' and text()='Confirm']")
+                            confirm_button.click()
+                            print("Confirmed the appointment")
                             time.sleep(1)
 
                             # Send message to all specified chat IDs
                             for chat_id in CHAT_IDS:
                                 telegram_message(TELEGRAM_TOKEN, chat_id, message)
-
-                            appointment_date = get_appointment_date(driver)
                             
                         else:
                             print("No earlier date available, waiting next call...")
@@ -155,18 +148,16 @@ def main():
     print("Starting the scheduler...")
     driver = setup_driver()
     login(driver)
-    appointment_date = get_appointment_date(driver)
     time.sleep(2)
-    find_first_available_day(driver, appointment_date)
+    find_first_available_day(driver, get_appointment_date(driver))
 
-    # Schedule to run every 15 minutes
-    schedule.every(5).minutes.do(lambda: find_first_available_day(driver, appointment_date))
+    # Schedule to run every 6 minutes
+    schedule.every(6).minutes.do(lambda: find_first_available_day(driver, get_appointment_date(driver)))
 
-    # Run the scheduled tasks for 1 hour
+    # Run the scheduled tasks for 4 hour
     end_time = datetime.now() + timedelta(hours=4)
     while datetime.now() < end_time:
         schedule.run_pending()
-        #time.sleep(1)  # Avoid busy-waiting
 
     # Clean up driver
     driver.quit()
