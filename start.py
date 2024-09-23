@@ -45,6 +45,7 @@ def login(driver):
     driver.execute_script("arguments[0].click();", submit_button)
 
 def get_appointment_date(driver):
+    driver.get(f"https://ais.usvisa-info.com/en-tr/niv/account")
     # Check if <li role="menuitem"><a class="button primary small" href="/tr-tr/niv/schedule/60933952/continue_actions">Devam Et</a></li> clickable
     WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.XPATH, "//li[@role='menuitem']//a[@class='button primary small']")))
 
@@ -132,6 +133,9 @@ def find_first_available_day(driver, appointment_date: datetime):
                             # Send message to all specified chat IDs
                             for chat_id in CHAT_IDS:
                                 telegram_message(TELEGRAM_TOKEN, chat_id, message)
+
+                            appointment_date = get_appointment_date(driver)
+                            
                         else:
                             print("No earlier date available, waiting next call...")
                         break    
