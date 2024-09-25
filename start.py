@@ -17,6 +17,7 @@ from config import USER_EMAIL, USER_PASSWORD, TELEGRAM_TOKEN, CHAT_IDS, DRIVER_P
 # Setup WebDriver
 def setup_driver():
     chrome_options = Options()
+    chrome_options.add_argument("--enable-features=WebContentsForceDark")
     service = Service(executable_path=DRIVER_PATH)
     driver = webdriver.Chrome(service=service, options=chrome_options)
     return driver
@@ -71,7 +72,9 @@ def telegram_message(token, chat_id, message):
 
 # Find the first available day for the appointment
 def find_first_available_day(driver, appointment_date: datetime):
-    driver.get(f"https://ais.usvisa-info.com/en-tr/niv/schedule/{APPOINTMENT_ID}/appointment")
+    #driver.get(f"https://ais.usvisa-info.com/en-tr/niv/schedule/{APPOINTMENT_ID}/appointment")
+    # if you are receiving the appointment limit message, you can use the following line otherwise you can use the above line
+    driver.get(f"https://ais.usvisa-info.com/en-tr/niv/schedule/{APPOINTMENT_ID}/appointment?confirmed_limit_message=1&commit=Continue")
     #time.sleep(1)
 
     # check if appointments_consulate_appointment_date is clickable
@@ -112,7 +115,9 @@ def find_first_available_day(driver, appointment_date: datetime):
                         # Parse the selected date and compare with threshold
                         full_date = datetime.strptime(selected_date, "%Y-%m-%d")
                         print(f"Selected date: {full_date.strftime('%d-%m-%Y')} Time: {selected_time}")
-                        if full_date < appointment_date:
+                        date_diff = full_date - appointment_date
+                        print(f"Date difference: {date_diff.days} days")
+                        if full_date < appointment_date and date_diff.days < 60 and date_diff.days > 1:
                             message = f"Available date found and taken: {full_date.strftime('%d-%m-%Y')} Time: {selected_time}"
                             print(message)
                             submit = driver.find_element(By.ID, 'appointments_submit')
@@ -136,7 +141,6 @@ def find_first_available_day(driver, appointment_date: datetime):
                     # iterating to next month
                     next_button = driver.find_element(By.CLASS_NAME, 'ui-datepicker-next')
                     next_button.click()
-
             except Exception as e:
                 print(f"Error occurred: {e}")
                 break
@@ -145,22 +149,49 @@ def find_first_available_day(driver, appointment_date: datetime):
 
 # Main function to run the scheduler
 def main():
-    print("Starting the scheduler...")
-    driver = setup_driver()
-    login(driver)
-    time.sleep(2)
-    find_first_available_day(driver, get_appointment_date(driver))
+    attempt = 0  # Attempt counter
+    max_attempts = 5  # Maximum number of attempts
 
-    # Schedule to run every 6 minutes
-    schedule.every(6).minutes.do(lambda: find_first_available_day(driver, get_appointment_date(driver)))
+    while attempt < max_attempts:
+        try:
+            print(f"Starting attempt {attempt + 1}/{max_attempts}...")
 
-    # Run the scheduled tasks for 4 hour
-    end_time = datetime.now() + timedelta(hours=4)
-    while datetime.now() < end_time:
-        schedule.run_pending()
+            # Setup the driver and login
+            driver = setup_driver()
+            login(driver)
+            time.sleep(2)
 
-    # Clean up driver
-    driver.quit()
+            # Get the current appointment date
+            find_first_available_day(driver, get_appointment_date(driver))
+
+            # run the scheduler every x minute
+            schedule.every(1).minutes.do(lambda: find_first_available_day(driver, get_appointment_date(driver)))
+
+            # run the scheduler for 4 hours
+            end_time = datetime.now() + timedelta(hours=4)
+            while datetime.now() < end_time:
+                schedule.run_pending()
+                time.sleep(1)
+
+            break  # Exit the loop if the script runs successfully
+        except Exception as e:
+            print(f"Error occurred on attempt {attempt + 1}: {e}")
+            attempt += 1
+            time.sleep(10)
+
+            if attempt >= max_attempts:
+                print("Max attempts reached. Exiting.")
+        finally:
+            # quit the driver
+            try:
+                driver.quit()
+            except Exception as e:
+                print(f"Failed to close driver: {e}")
+
+            # Retry if max attempts not reached
+            if attempt < max_attempts:
+                print("Restarting browser and retrying...")
+                time.sleep(5)
 
 if __name__ == "__main__":
     main()
