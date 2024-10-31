@@ -12,14 +12,13 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait, Select
 from selenium.webdriver.support import expected_conditions as EC
 
-from config import USER_EMAIL, USER_PASSWORD, TELEGRAM_TOKEN, CHAT_IDS, DRIVER_PATH, APPOINTMENT_ID
+from config import USER_EMAIL, USER_PASSWORD, TELEGRAM_TOKEN, CHAT_IDS, APPOINTMENT_ID, MAX_APPOINTMENT_DATE
 
 # Setup WebDriver
 def setup_driver():
-    chrome_options = Options()
+    chrome_options = webdriver.ChromeOptions()
     chrome_options.add_argument("--enable-features=WebContentsForceDark")
-    service = Service(executable_path=DRIVER_PATH)
-    driver = webdriver.Chrome(service=service, options=chrome_options)
+    driver = webdriver.Chrome(options=chrome_options)
     return driver
 
 # Log in to the system
@@ -72,9 +71,9 @@ def telegram_message(token, chat_id, message):
 
 # Find the first available day for the appointment
 def find_first_available_day(driver, appointment_date: datetime):
-    #driver.get(f"https://ais.usvisa-info.com/en-tr/niv/schedule/{APPOINTMENT_ID}/appointment")
+    driver.get(f"https://ais.usvisa-info.com/en-tr/niv/schedule/{APPOINTMENT_ID}/appointment")
     # if you are receiving the appointment limit message, you can use the following line otherwise you can use the above line
-    driver.get(f"https://ais.usvisa-info.com/en-tr/niv/schedule/{APPOINTMENT_ID}/appointment?confirmed_limit_message=1&commit=Continue")
+    # driver.get(f"https://ais.usvisa-info.com/en-tr/niv/schedule/{APPOINTMENT_ID}/appointment?confirmed_limit_message=1&commit=Continue")
     #time.sleep(1)
 
     # check if appointments_consulate_appointment_date is clickable
@@ -113,12 +112,10 @@ def find_first_available_day(driver, appointment_date: datetime):
                         selected_time = select.first_selected_option.text
 
                         # Parse the selected date and compare with threshold
-                        full_date = datetime.strptime(selected_date, "%Y-%m-%d")
-                        print(f"Selected date: {full_date.strftime('%d-%m-%Y')} Time: {selected_time}")
-                        date_diff = full_date - appointment_date
-                        print(f"Date difference: {date_diff.days} days")
-                        if full_date < appointment_date and date_diff.days < 60 and date_diff.days > 1:
-                            message = f"Available date found and taken: {full_date.strftime('%d-%m-%Y')} Time: {selected_time}"
+                        selected_full_date = datetime.strptime(selected_date, "%Y-%m-%d")
+                        print(f"Selected date: {selected_full_date.strftime('%d-%m-%Y')} Time: {selected_time}")
+                        if selected_full_date < appointment_date and selected_full_date < MAX_APPOINTMENT_DATE:
+                            message = f"{USER_EMAIL} Available date found and taken: {selected_full_date.strftime('%d-%m-%Y')} Time: {selected_time}"
                             print(message)
                             submit = driver.find_element(By.ID, 'appointments_submit')
                             submit.click()
@@ -165,7 +162,7 @@ def main():
             find_first_available_day(driver, get_appointment_date(driver))
 
             # run the scheduler every x minute
-            schedule.every(1).minutes.do(lambda: find_first_available_day(driver, get_appointment_date(driver)))
+            schedule.every(3).minutes.do(lambda: find_first_available_day(driver, get_appointment_date(driver)))
 
             # run the scheduler for 4 hours
             end_time = datetime.now() + timedelta(hours=4)
