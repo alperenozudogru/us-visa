@@ -113,8 +113,9 @@ def find_first_available_day(driver, appointment_date: datetime):
 
                         # Parse the selected date and compare with threshold
                         selected_full_date = datetime.strptime(selected_date, "%Y-%m-%d")
+                        max_appointment_date = datetime.strptime(MAX_APPOINTMENT_DATE, "%Y-%m-%d")
                         print(f"Selected date: {selected_full_date.strftime('%d-%m-%Y')} Time: {selected_time}")
-                        if selected_full_date < appointment_date and selected_full_date < MAX_APPOINTMENT_DATE:
+                        if selected_full_date < appointment_date and selected_full_date < max_appointment_date:
                             message = f"{USER_EMAIL} Available date found and taken: {selected_full_date.strftime('%d-%m-%Y')} Time: {selected_time}"
                             print(message)
                             submit = driver.find_element(By.ID, 'appointments_submit')
@@ -133,6 +134,8 @@ def find_first_available_day(driver, appointment_date: datetime):
                             
                         else:
                             print("No earlier date available, waiting next call...")
+                            print("")
+
                         break    
                 else:
                     # iterating to next month
