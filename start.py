@@ -12,7 +12,7 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait, Select
 from selenium.webdriver.support import expected_conditions as EC
 
-from config import USER_EMAIL, USER_PASSWORD, TELEGRAM_TOKEN, CHAT_IDS, APPOINTMENT_ID, MAX_APPOINTMENT_DATE
+from config import USER_EMAIL, USER_PASSWORD, TELEGRAM_TOKEN, CHAT_IDS, APPOINTMENT_ID, MAX_APPOINTMENT_DATE, IS_GROUP
 
 # Setup WebDriver
 def setup_driver():
@@ -72,9 +72,15 @@ def telegram_message(token, chat_id, message):
 # Find the first available day for the appointment
 def find_first_available_day(driver, appointment_date: datetime):
     driver.get(f"https://ais.usvisa-info.com/en-tr/niv/schedule/{APPOINTMENT_ID}/appointment")
+    
     # if you are receiving the appointment limit message, you can use the following line otherwise you can use the above line
     # driver.get(f"https://ais.usvisa-info.com/en-tr/niv/schedule/{APPOINTMENT_ID}/appointment?confirmed_limit_message=1&commit=Continue")
     #time.sleep(1)
+
+    if IS_GROUP == "True":
+        WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.NAME, 'commit')))
+        group_commit = driver.find_element(By.NAME, 'commit')
+        group_commit.click()
 
     # check if appointments_consulate_appointment_date is clickable
     WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.ID, 'appointments_consulate_appointment_date')))
@@ -113,9 +119,12 @@ def find_first_available_day(driver, appointment_date: datetime):
 
                         # Parse the selected date and compare with threshold
                         selected_full_date = datetime.strptime(selected_date, "%Y-%m-%d")
-                        max_appointment_date = datetime.strptime(MAX_APPOINTMENT_DATE, "%Y-%m-%d")
+                        max_appointment_date = selected_full_date
+                        if MAX_APPOINTMENT_DATE:
+                            max_appointment_date = datetime.strptime(MAX_APPOINTMENT_DATE, "%Y-%m-%d")
                         print(f"Selected date: {selected_full_date.strftime('%d-%m-%Y')} Time: {selected_time}")
-                        if selected_full_date < appointment_date and selected_full_date < max_appointment_date:
+                        print(f"Max appointment date: {max_appointment_date.strftime('%d-%m-%Y')}")
+                        if selected_full_date < appointment_date and selected_full_date <= max_appointment_date:
                             message = f"{USER_EMAIL} Available date found and taken: {selected_full_date.strftime('%d-%m-%Y')} Time: {selected_time}"
                             print(message)
                             submit = driver.find_element(By.ID, 'appointments_submit')
