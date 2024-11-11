@@ -17,7 +17,10 @@ from config import USER_EMAIL, USER_PASSWORD, TELEGRAM_TOKEN, CHAT_IDS, APPOINTM
 # Setup WebDriver
 def setup_driver():
     chrome_options = webdriver.ChromeOptions()
-    chrome_options.add_argument("--enable-features=WebContentsForceDark")
+    #chrome_options.add_argument("--headless")
+    chrome_options.add_argument("window-size=1920,1080")
+    chrome_options.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.88 Safari/537.36")
+
     driver = webdriver.Chrome(options=chrome_options)
     return driver
 
@@ -104,6 +107,8 @@ def find_first_available_day(driver, appointment_date: datetime):
                     current_day_diff_rate = (appointment_date - datetime.now()).days / 5
                     appointment_day_diff = (appointment_date - selected_date).days
 
+                    print(f"Selected date: {selected_date.strftime('%d-%m-%Y')}")
+
                     if(current_day_diff_rate > appointment_day_diff):
                         print("No earlier date available, waiting next call...")
                         print("")
@@ -126,7 +131,7 @@ def find_first_available_day(driver, appointment_date: datetime):
                         select.select_by_index(1)  # Skip the first index as it's usually empty
                         selected_time = select.first_selected_option.text
 
-                        print(f"Selected date: {selected_date.strftime('%d-%m-%Y')} Time: {selected_time}")
+                        print(f"Selected date time: {selected_date.strftime('%d-%m-%Y')} Time: {selected_time}")
                         
                         message = f"{USER_EMAIL} Available date found and taken: {selected_date.strftime('%d-%m-%Y')} Time: {selected_time}"
                         print(message)
