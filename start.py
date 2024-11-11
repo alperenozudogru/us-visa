@@ -12,7 +12,7 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait, Select
 from selenium.webdriver.support import expected_conditions as EC
 
-from config import USER_EMAIL, USER_PASSWORD, TELEGRAM_TOKEN, CHAT_IDS, APPOINTMENT_ID, MAX_APPOINTMENT_DATE, IS_GROUP
+from config import USER_EMAIL, USER_PASSWORD, TELEGRAM_TOKEN, CHAT_IDS, APPOINTMENT_ID, IS_GROUP
 
 # Setup WebDriver
 def setup_driver():
@@ -98,7 +98,16 @@ def find_first_available_day(driver, appointment_date: datetime):
                 available_days = driver.find_elements(By.XPATH, "//td[not(contains(@class, 'ui-state-disabled'))]//a")
                 if available_days:
                     available_days[0].click()  # Select the first available date
-                    selected_date = driver.find_element(By.ID, 'appointments_consulate_appointment_date').get_attribute('value') ## yyyy-mm-dd formatında
+                    clicked_date = driver.find_element(By.ID, 'appointments_consulate_appointment_date').get_attribute('value') ## yyyy-mm-dd formatında
+
+                    selected_date = datetime.strptime(clicked_date, "%Y-%m-%d")
+                    current_day_diff_rate = (appointment_date - datetime.now()).days / 5
+                    appointment_day_diff = (appointment_date - selected_date).days
+
+                    if(current_day_diff_rate > appointment_day_diff):
+                        print("No earlier date available, waiting next call...")
+                        print("")
+                        break
 
                     time.sleep(1)
                     # Wait for the time dropdown to be present
@@ -117,34 +126,24 @@ def find_first_available_day(driver, appointment_date: datetime):
                         select.select_by_index(1)  # Skip the first index as it's usually empty
                         selected_time = select.first_selected_option.text
 
-                        # Parse the selected date and compare with threshold
-                        selected_full_date = datetime.strptime(selected_date, "%Y-%m-%d")
-                        max_appointment_date = selected_full_date
-                        if MAX_APPOINTMENT_DATE:
-                            max_appointment_date = datetime.strptime(MAX_APPOINTMENT_DATE, "%Y-%m-%d")
-                        print(f"Selected date: {selected_full_date.strftime('%d-%m-%Y')} Time: {selected_time}")
-                        print(f"Max appointment date: {max_appointment_date.strftime('%d-%m-%Y')}")
-                        if selected_full_date < appointment_date and selected_full_date <= max_appointment_date:
-                            message = f"{USER_EMAIL} Available date found and taken: {selected_full_date.strftime('%d-%m-%Y')} Time: {selected_time}"
-                            print(message)
-                            submit = driver.find_element(By.ID, 'appointments_submit')
-                            submit.click()
-                            time.sleep(1)
-                            
-                            # Click the "Confirm" button in the confirmation modal
-                            confirm_button = driver.find_element(By.XPATH, "//a[@class='button alert' and text()='Confirm']")
-                            confirm_button.click()
-                            print("Confirmed the appointment")
-                            time.sleep(1)
+                        print(f"Selected date: {selected_date.strftime('%d-%m-%Y')} Time: {selected_time}")
+                        
+                        message = f"{USER_EMAIL} Available date found and taken: {selected_date.strftime('%d-%m-%Y')} Time: {selected_time}"
+                        print(message)
+                        submit = driver.find_element(By.ID, 'appointments_submit')
+                        submit.click()
+                        time.sleep(1)
+                        
+                        # Click the "Confirm" button in the confirmation modal
+                        confirm_button = driver.find_element(By.XPATH, "//a[@class='button alert' and text()='Confirm']")
+                        #confirm_button.click()
+                        print("Confirmed the appointment")
+                        time.sleep(1)
 
-                            # Send message to all specified chat IDs
-                            for chat_id in CHAT_IDS:
-                                telegram_message(TELEGRAM_TOKEN, chat_id, message)
+                        # Send message to all specified chat IDs
+                        for chat_id in CHAT_IDS:
+                            telegram_message(TELEGRAM_TOKEN, chat_id, message)
                             
-                        else:
-                            print("No earlier date available, waiting next call...")
-                            print("")
-
                         break    
                 else:
                     # iterating to next month
@@ -161,7 +160,7 @@ def main():
     attempt = 0  # Attempt counter
     max_attempts = 5  # Maximum number of attempts
 
-    while attempt < max_attempts:
+    while True:
         try:
             print(f"Starting attempt {attempt + 1}/{max_attempts}...")
 
