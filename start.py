@@ -18,7 +18,7 @@ from config import USER_EMAIL, USER_PASSWORD, TELEGRAM_TOKEN, CHAT_IDS, APPOINTM
 def setup_driver():
     chrome_options = webdriver.ChromeOptions()
     #chrome_options.add_argument("--headless")
-    chrome_options.add_argument("window-size=1920,1080")
+    chrome_options.add_argument("--enable-features=WebContentsForceDark")
     chrome_options.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.88 Safari/537.36")
 
     driver = webdriver.Chrome(options=chrome_options)
@@ -141,7 +141,7 @@ def find_first_available_day(driver, appointment_date: datetime):
                         
                         # Click the "Confirm" button in the confirmation modal
                         confirm_button = driver.find_element(By.XPATH, "//a[@class='button alert' and text()='Confirm']")
-                        #confirm_button.click()
+                        confirm_button.click()
                         print("Confirmed the appointment")
                         time.sleep(1)
 
