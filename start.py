@@ -17,8 +17,8 @@ from config import USER_EMAIL, USER_PASSWORD, TELEGRAM_TOKEN, CHAT_IDS, APPOINTM
 # Setup WebDriver
 def setup_driver():
     chrome_options = webdriver.ChromeOptions()
-    #chrome_options.add_argument("--headless")
-    chrome_options.add_argument("--enable-features=WebContentsForceDark")
+    chrome_options.add_argument("--headless")
+    # chrome_options.add_argument("--enable-features=WebContentsForceDark")
     chrome_options.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.88 Safari/537.36")
 
     driver = webdriver.Chrome(options=chrome_options)
@@ -53,7 +53,6 @@ def get_appointment_date(driver):
 
     # Extract the text content
     consular_appt_text = consular_appt_element.text
-
     # Use a regular expression to extract the date
     date_match = re.search(r'(\d{1,2} \w+, \d{4})', consular_appt_text)
     if date_match:
@@ -97,114 +96,103 @@ def find_first_available_day(driver, appointment_date: datetime):
 
         # Check available dates
         while True:
-            try:
-                available_days = driver.find_elements(By.XPATH, "//td[not(contains(@class, 'ui-state-disabled'))]//a")
-                if available_days:
-                    available_days[0].click()  # Select the first available date
-                    clicked_date = driver.find_element(By.ID, 'appointments_consulate_appointment_date').get_attribute('value') ## yyyy-mm-dd formatında
+            available_days = driver.find_elements(By.XPATH, "//td[not(contains(@class, 'ui-state-disabled'))]//a")
+            if available_days:
+                available_days[0].click()  # Select the first available date
+                clicked_date = driver.find_element(By.ID, 'appointments_consulate_appointment_date').get_attribute('value') ## yyyy-mm-dd formatında
 
-                    selected_date = datetime.strptime(clicked_date, "%Y-%m-%d")
-                    current_day_diff_rate = (appointment_date - datetime.now()).days / 5
-                    appointment_day_diff = (appointment_date - selected_date).days
+                selected_date = datetime.strptime(clicked_date, "%Y-%m-%d")
+                current_day_diff_rate = (appointment_date - datetime.now()).days / 5
+                appointment_day_diff = (appointment_date - selected_date).days
 
-                    print(f"Selected date: {selected_date.strftime('%d-%m-%Y')}")
+                print(f"Selected date: {selected_date.strftime('%d-%m-%Y')}")
 
-                    if(current_day_diff_rate > appointment_day_diff):
-                        print("No earlier date available, waiting next call...")
-                        print("")
-                        break
+                if(current_day_diff_rate > appointment_day_diff):
+                    print("No earlier date available, waiting next call...")
+                    print("")
+                    break
 
+                time.sleep(1)
+                # Wait for the time dropdown to be present
+                time_dropdown = WebDriverWait(driver, 10).until(
+                    EC.presence_of_element_located((By.ID, 'appointments_consulate_appointment_time'))
+                )
+
+                # Select an available time
+                select = Select(time_dropdown)
+
+                # Wait until the select element has more than one option
+                WebDriverWait(driver, 10).until(lambda d: len(select.options) > 1)
+
+                # Check if there are enough options
+                if len(select.options) > 1:
+                    select.select_by_index(1)  # Skip the first index as it's usually empty
+                    selected_time = select.first_selected_option.text
+
+                    print(f"Selected date time: {selected_date.strftime('%d-%m-%Y')} Time: {selected_time}")
+                    
+                    message = f"{USER_EMAIL} Available date found and taken: {selected_date.strftime('%d-%m-%Y')} Time: {selected_time}"
+                    print(message)
+                    submit = driver.find_element(By.ID, 'appointments_submit')
+                    submit.click()
                     time.sleep(1)
-                    # Wait for the time dropdown to be present
-                    time_dropdown = WebDriverWait(driver, 10).until(
-                        EC.presence_of_element_located((By.ID, 'appointments_consulate_appointment_time'))
-                    )
+                    
+                    # Click the "Confirm" button in the confirmation modal
+                    confirm_button = driver.find_element(By.XPATH, "//a[@class='button alert' and text()='Confirm']")
+                    confirm_button.click()
+                    print("Confirmed the appointment")
+                    time.sleep(1)
 
-                    # Select an available time
-                    select = Select(time_dropdown)
-
-                    # Wait until the select element has more than one option
-                    WebDriverWait(driver, 10).until(lambda d: len(select.options) > 1)
-
-                    # Check if there are enough options
-                    if len(select.options) > 1:
-                        select.select_by_index(1)  # Skip the first index as it's usually empty
-                        selected_time = select.first_selected_option.text
-
-                        print(f"Selected date time: {selected_date.strftime('%d-%m-%Y')} Time: {selected_time}")
+                    # Send message to all specified chat IDs
+                    for chat_id in CHAT_IDS:
+                        telegram_message(TELEGRAM_TOKEN, chat_id, message)
                         
-                        message = f"{USER_EMAIL} Available date found and taken: {selected_date.strftime('%d-%m-%Y')} Time: {selected_time}"
-                        print(message)
-                        submit = driver.find_element(By.ID, 'appointments_submit')
-                        submit.click()
-                        time.sleep(1)
-                        
-                        # Click the "Confirm" button in the confirmation modal
-                        confirm_button = driver.find_element(By.XPATH, "//a[@class='button alert' and text()='Confirm']")
-                        confirm_button.click()
-                        print("Confirmed the appointment")
-                        time.sleep(1)
-
-                        # Send message to all specified chat IDs
-                        for chat_id in CHAT_IDS:
-                            telegram_message(TELEGRAM_TOKEN, chat_id, message)
-                            
-                        break    
-                else:
-                    # iterating to next month
-                    next_button = driver.find_element(By.CLASS_NAME, 'ui-datepicker-next')
-                    next_button.click()
-            except Exception as e:
-                print(f"Error occurred: {e}")
-                break
+                    break    
+            else:
+                # iterating to next month
+                next_button = driver.find_element(By.CLASS_NAME, 'ui-datepicker-next')
+                next_button.click()
     except Exception as e:
         print(f"Failed to check for appointments: {e}")
 
 # Main function to run the scheduler
 def main():
-    attempt = 0  # Attempt counter
-    max_attempts = 5  # Maximum number of attempts
 
-    while True:
+    try:
+        print(f"Starting attempt...")
+
+        # Setup the driver and login
+        driver = setup_driver()
+        login(driver)
+        time.sleep(2)
+
+        # Get the current appointment date
+        find_first_available_day(driver, get_appointment_date(driver))
+
+        # run the scheduler every x minute
+        job = schedule.every(3).minutes.do(lambda: find_first_available_day(driver, get_appointment_date(driver)))
+
+        # run the scheduler for 4 hours
+        end_time = datetime.now() + timedelta(hours=4)
+        while datetime.now() < end_time:
+            schedule.run_pending()
+            time.sleep(1)
+
+    except Exception as e:
+        print(f"Error occurred on main : {e}")
+        time.sleep(10)
+    finally:
+        # quit the driver
         try:
-            print(f"Starting attempt {attempt + 1}/{max_attempts}...")
-
-            # Setup the driver and login
-            driver = setup_driver()
-            login(driver)
-            time.sleep(2)
-
-            # Get the current appointment date
-            find_first_available_day(driver, get_appointment_date(driver))
-
-            # run the scheduler every x minute
-            schedule.every(3).minutes.do(lambda: find_first_available_day(driver, get_appointment_date(driver)))
-
-            # run the scheduler for 4 hours
-            end_time = datetime.now() + timedelta(hours=4)
-            while datetime.now() < end_time:
-                schedule.run_pending()
-                time.sleep(1)
-
-            break  # Exit the loop if the script runs successfully
+            schedule.clear()
+            schedule.cancel_job(job)
+            driver.quit()
         except Exception as e:
-            print(f"Error occurred on attempt {attempt + 1}: {e}")
-            attempt += 1
-            time.sleep(10)
+            print(f"Failed to close driver: {e}")
 
-            if attempt >= max_attempts:
-                print("Max attempts reached. Exiting.")
-        finally:
-            # quit the driver
-            try:
-                driver.quit()
-            except Exception as e:
-                print(f"Failed to close driver: {e}")
-
-            # Retry if max attempts not reached
-            if attempt < max_attempts:
-                print("Restarting browser and retrying...")
-                time.sleep(5)
+        print("Restarting browser and retrying...")
+        time.sleep(5)
+        main()
 
 if __name__ == "__main__":
     main()
