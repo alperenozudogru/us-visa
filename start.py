@@ -44,25 +44,28 @@ def login(driver):
     driver.execute_script("arguments[0].click();", submit_button)
 
 def get_appointment_date(driver):
-    driver.get(f"https://ais.usvisa-info.com/en-tr/niv/account")
-    # Check if <li role="menuitem"><a class="button primary small" href="/tr-tr/niv/schedule/60933952/continue_actions">Devam Et</a></li> clickable
-    WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.XPATH, "//li[@role='menuitem']//a[@class='button primary small']")))
+    try:
+        driver.get(f"https://ais.usvisa-info.com/en-tr/niv/account")
+        # Check if <li role="menuitem"><a class="button primary small" href="/tr-tr/niv/schedule/60933952/continue_actions">Devam Et</a></li> clickable
+        WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.XPATH, "//li[@role='menuitem']//a[@class='button primary small']")))
 
-    # Locate the <p> element with the class 'consular-appt'
-    consular_appt_element = driver.find_element(By.CSS_SELECTOR, "p.consular-appt")
+        # Locate the <p> element with the class 'consular-appt'
+        consular_appt_element = driver.find_element(By.CSS_SELECTOR, "p.consular-appt")
 
-    # Extract the text content
-    consular_appt_text = consular_appt_element.text
-    # Use a regular expression to extract the date
-    date_match = re.search(r'(\d{1,2} \w+, \d{4})', consular_appt_text)
-    if date_match:
-        appointment_date_str = date_match.group(1)
-        # Parse the extracted date string to a datetime object
-        appointment_date = datetime.strptime(appointment_date_str, "%d %B, %Y")
-        print(f"Current Appointment Date: {appointment_date.strftime('%d-%m-%Y')}")
-    else:
-        print("No date found in the consular appointment text.")
-    return appointment_date
+        # Extract the text content
+        consular_appt_text = consular_appt_element.text
+        # Use a regular expression to extract the date
+        date_match = re.search(r'(\d{1,2} \w+, \d{4})', consular_appt_text)
+        if date_match:
+            appointment_date_str = date_match.group(1)
+            # Parse the extracted date string to a datetime object
+            appointment_date = datetime.strptime(appointment_date_str, "%d %B, %Y")
+            print(f"Current Appointment Date: {appointment_date.strftime('%d-%m-%Y')}")
+        else:
+            print("No date found in the consular appointment text.")
+        return appointment_date
+    except Exception as e:
+        print(f"Failed to get appointment date: {e}")
 
 # Send a Telegram message
 def telegram_message(token, chat_id, message):
@@ -73,21 +76,21 @@ def telegram_message(token, chat_id, message):
 
 # Find the first available day for the appointment
 def find_first_available_day(driver, appointment_date: datetime):
-    driver.get(f"https://ais.usvisa-info.com/en-tr/niv/schedule/{APPOINTMENT_ID}/appointment")
-    
-    # if you are receiving the appointment limit message, you can use the following line otherwise you can use the above line
-    # driver.get(f"https://ais.usvisa-info.com/en-tr/niv/schedule/{APPOINTMENT_ID}/appointment?confirmed_limit_message=1&commit=Continue")
-    #time.sleep(1)
-
-    if IS_GROUP == "True":
-        WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.NAME, 'commit')))
-        group_commit = driver.find_element(By.NAME, 'commit')
-        group_commit.click()
-
-    # check if appointments_consulate_appointment_date is clickable
-    WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.ID, 'appointments_consulate_appointment_date')))
-
     try:
+        driver.get(f"https://ais.usvisa-info.com/en-tr/niv/schedule/{APPOINTMENT_ID}/appointment")
+        
+        # if you are receiving the appointment limit message, you can use the following line otherwise you can use the above line
+        # driver.get(f"https://ais.usvisa-info.com/en-tr/niv/schedule/{APPOINTMENT_ID}/appointment?confirmed_limit_message=1&commit=Continue")
+        #time.sleep(1)
+
+        if IS_GROUP == "True":
+            WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.NAME, 'commit')))
+            group_commit = driver.find_element(By.NAME, 'commit')
+            group_commit.click()
+
+        # check if appointments_consulate_appointment_date is clickable
+        WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.ID, 'appointments_consulate_appointment_date')))
+
         date_picker = driver.find_element(By.ID, 'appointments_consulate_appointment_date')
         # Wait for the date picker to be clickable
         WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.ID, 'appointments_consulate_appointment_date')))
@@ -104,10 +107,12 @@ def find_first_available_day(driver, appointment_date: datetime):
                 selected_date = datetime.strptime(clicked_date, "%Y-%m-%d")
                 current_day_diff_rate = (appointment_date - datetime.now()).days / 5
                 appointment_day_diff = (appointment_date - selected_date).days
+                selected_date_current_date_diff = (selected_date - datetime.now()).days
 
                 print(f"Selected date: {selected_date.strftime('%d-%m-%Y')}")
+                print(f"selected_date_current_date_diff: {selected_date_current_date_diff}")
 
-                if(current_day_diff_rate > appointment_day_diff):
+                if(current_day_diff_rate > appointment_day_diff and selected_date_current_date_diff > 1):
                     print("No earlier date available, waiting next call...")
                     print("")
                     break
