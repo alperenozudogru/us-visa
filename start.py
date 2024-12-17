@@ -68,7 +68,7 @@ def get_appointment_date(driver):
             print("No date found in the consular appointment text.")
         return appointment_date
     except Exception as e:
-        print(f"Failed to get appointment date: {e}")
+        raise Exception(f"Failed to get appointment date: {e}")
 
 # Send a Telegram message
 def telegram_message(token, chat_id, message):
@@ -161,7 +161,7 @@ def find_first_available_day(driver, appointment_date: datetime):
                 next_button = driver.find_element(By.CLASS_NAME, 'ui-datepicker-next')
                 next_button.click()
     except Exception as e:
-        print(f"Failed to check for appointments: {e}")
+        raise Exception(f"Failed to check for appointments: {e}")
 
 # Main function to run the scheduler
 def main():
