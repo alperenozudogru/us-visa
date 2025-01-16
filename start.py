@@ -48,6 +48,7 @@ def login(driver):
 
 def get_appointment_date(driver):
     try:
+        print("DateTime Now: ", datetime.now().strftime("%d-%m-%Y %H:%M:%S"))
         driver.get(f"https://ais.usvisa-info.com/en-tr/niv/account")
         # Check if <li role="menuitem"><a class="button primary small" href="/tr-tr/niv/schedule/60933952/continue_actions">Devam Et</a></li> clickable
         WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.XPATH, "//li[@role='menuitem']//a[@class='button primary small']")))
@@ -98,7 +99,6 @@ def find_first_available_day(driver, appointment_date: datetime):
         # Wait for the date picker to be clickable
         WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.ID, 'appointments_consulate_appointment_date')))
         date_picker.click()
-        print("DateTime Now: ", datetime.now().strftime("%d-%m-%Y %H:%M:%S"))
 
         # Check available dates
         while True:
@@ -178,7 +178,7 @@ def main():
         find_first_available_day(driver, get_appointment_date(driver))
 
         # run the scheduler every x minute
-        job = schedule.every(3).minutes.do(lambda: find_first_available_day(driver, get_appointment_date(driver)))
+        schedule.every(4).minutes.do(lambda: find_first_available_day(driver, get_appointment_date(driver)))
 
         # run the scheduler for 4 hours
         end_time = datetime.now() + timedelta(hours=4)
@@ -193,13 +193,12 @@ def main():
         # quit the driver
         try:
             schedule.clear()
-            schedule.cancel_job(job)
             driver.quit()
         except Exception as e:
             print(f"Failed to close driver: {e}")
 
         print("Restarting browser and retrying...")
-        time.sleep(5)
+        time.sleep(900)
         main()
 
 if __name__ == "__main__":
